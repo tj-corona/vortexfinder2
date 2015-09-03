@@ -14,7 +14,7 @@ if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
   endif()
 
   # use Boost, since C++11 is not supported by ParaView
-  find_package (Boost REQUIRED COMPONENTS thread system)
+  find_package (Boost REQUIRED COMPONENTS thread system HINTS ${INSTALL_DIR})
   include_directories (${Boost_INCLUDE_DIR})
 
   # Set Protobuf flags to point to ParaView's Protobuf
