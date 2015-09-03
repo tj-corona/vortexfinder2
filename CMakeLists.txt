@@ -18,10 +18,9 @@ if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
   include_directories (${Boost_INCLUDE_DIR})
 
   # Set Protobuf flags to point to ParaView's Protobuf
-  FIND_PACKAGE(Protobuf REQUIRED)
   set (PROTOBUF_INCLUDE_DIR ${ParaView_SOURCE_DIR}/ThirdParty/protobuf/vtkprotobuf/src)
   set (PROTOBUF_LIBRARY ${ParaView_BINARY_DIR}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}protobuf${CMAKE_SHARED_LIBRARY_SUFFIX})
-  set (PROTOBUF_PROTOC_EXECUTABLE ${ParaView_BINARY_DIR}/bin/protoc)
+  set (PROTOBUF_PROTOC_EXECUTABLE $<TARGET_FILE:protoc_compiler>)
 
   set (WITH_VTK ON)
   set (WITH_PARAVIEW ON)
@@ -135,7 +134,7 @@ else()
 
 endif()
 
-find_package (Protobuf REQUIRED)
+FIND_PACKAGE(Protobuf REQUIRED)
 include_directories (${PROTOBUF_INCLUDE_DIR})
 
 # boost options
