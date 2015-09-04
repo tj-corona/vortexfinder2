@@ -7,23 +7,29 @@ if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
   
   # Find and Include ParaView
   if(NOT ParaView_SOURCE_DIR)
-    FIND_PACKAGE(ParaView REQUIRED)
-    INCLUDE(${PARAVIEW_USE_FILE})
+    find_package(ParaView REQUIRED)
+    include(${PARAVIEW_USE_FILE})
   else()
     include_directories(${VTK_INCLUDE_DIRS})
   endif()
 
   # use Boost, since C++11 is not supported by ParaView
-  find_package (Boost REQUIRED COMPONENTS thread system HINTS ${INSTALL_DIR})
-  include_directories (${Boost_INCLUDE_DIR})
+  if(TARGET boost)
+    ExternalProject_Get_Property(boost install_dir)
+    include_directories(${install_dir})
+  else()
+    find_package(Boost REQUIRED COMPONENTS thread system)
+    include_directories(${Boost_INCLUDE_DIR})
+  endif()
 
   # Set Protobuf flags to point to ParaView's Protobuf
-  set (PROTOBUF_INCLUDE_DIR ${ParaView_SOURCE_DIR}/ThirdParty/protobuf/vtkprotobuf/src)
-  set (PROTOBUF_LIBRARY ${ParaView_BINARY_DIR}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}protobuf${CMAKE_SHARED_LIBRARY_SUFFIX})
-  set (PROTOBUF_PROTOC_EXECUTABLE $<TARGET_FILE:protoc_compiler>)
+  vtk_module_load(vtkprotobuf)
+  list(GET vtkprotobuf_INCLUDE_DIRS 0 PROTOBUF_INCLUDE_DIR)
+  set(PROTOBUF_LIBRARY $<TARGET_FILE:protobuf>)
+  set(PROTOBUF_PROTOC_EXECUTABLE $<TARGET_FILE:protoc_compiler>)
 
-  set (WITH_VTK ON)
-  set (WITH_PARAVIEW ON)
+  set(WITH_VTK ON)
+  set(WITH_PARAVIEW ON)
 
 else()
 
