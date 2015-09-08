@@ -1,8 +1,8 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cassert>
-#include <cmath>
 #include <climits>
+#include <cmath>
 #include <iostream>
 #include "common/Utils.hpp"
 #include "common/Lerp.hpp"
@@ -186,9 +186,9 @@ bool GLGPU3DDataset::Supercurrent(const double X[3], double J[3]) const
   const double *j[3] = {_Jx, _Jy, _Jz};
   
   Pos2Grid(X, gpt);
-  if (isnan(gpt[0]) || gpt[0]<=1 || gpt[0]>dims()[0]-2 || 
-      isnan(gpt[1]) || gpt[1]<=1 || gpt[1]>dims()[1]-2 || 
-      isnan(gpt[2]) || gpt[2]<=1 || gpt[2]>dims()[2]-2) return false;
+  if ((gpt[0]!=gpt[0]) || gpt[0]<=1 || gpt[0]>dims()[0]-2 || 
+      (gpt[1]!=gpt[1]) || gpt[1]<=1 || gpt[1]>dims()[1]-2 || 
+      (gpt[2]!=gpt[2]) || gpt[2]<=1 || gpt[2]>dims()[2]-2) return false;
 
   if (!lerp3D(gpt, st, dims(), 3, j, J))
     return false;

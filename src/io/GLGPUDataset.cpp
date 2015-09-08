@@ -3,12 +3,12 @@
 #include "common/Utils.hpp"
 #include "common/DataInfo.pb.h"
 #include <cassert>
-#include <cmath>
 #include <climits>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <glob.h>
+#include <math.h>
 
 GLGPUDataset::GLGPUDataset() :
   _Jx(NULL), _Jy(NULL), _Jz(NULL)

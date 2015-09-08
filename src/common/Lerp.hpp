@@ -138,7 +138,7 @@ bool lerp4D(const T *pt, const int* st, const int* sz, int num_vars, const T **p
     p[15]= texel4D(ptrs[v], sz, i1 , j1 , k1 , l1 ); 
 
     for (s=0; s<16; s++) 
-      if (isnan(p[i]) || isinf(p[i]))
+      if ((p[i]!=p[i]) || isinf(p[i]))
         return false; 
   
     vars[v] = 

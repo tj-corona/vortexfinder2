@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <fstream>
 #include <iostream>
+#include <math.h>
 #include "widget.h"
 #include "common/VortexLine.h"
 #include "common/FieldLine.h"
@@ -1009,7 +1010,7 @@ void CGLWidget::updateVortexTubes(int nPatches, float radius)
       QVector3D N = QVector3D(-T.y(), T.x(), 0.0).normalized(); 
       QVector3D B = QVector3D::crossProduct(N, T); 
 
-      if (N.length() == 0 || isnan(N.length())) N=QVector3D(1,0,0);
+      if (N.length() == 0 || (N.length() != N.length())) N=QVector3D(1,0,0);
       // if (N.length() == 0 || isnan(N.length())) continue;
 
       if (j>1) {
