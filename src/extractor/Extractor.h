@@ -30,19 +30,26 @@ public:
 
   void SetGaugeTransformation(bool);
   void SetArchive(bool); // archive intermediate results for data reuse
+  void SetExtentThreshold(float);
+  void SetGPU(bool);
+  void SetPertubation(float);
   
   virtual void SetDataset(const GLDatasetBase* ds);
   const GLDataset* Dataset() const {return (GLDataset*)_dataset;}
 
   void ExtractFaces(int slot=0);
-  void ExtractFaces(std::vector<FaceIdType> faces, int slot=0);
+  void ExtractFaces(std::vector<FaceIdType> faces, int slot, int &positive, int &negative);
   void ExtractEdges();
+  
+  void ExtractFaces_GPU(int slot=0);
+  void ExtractEdges_GPU();
 
   bool SavePuncturedEdges() const;
   bool LoadPuncturedEdges();
   bool SavePuncturedFaces(int slot=0) const; 
   bool LoadPuncturedFaces(int slot=0);
   void ClearPuncturedObjects();
+  void Clear();
   
   void SaveVortexLines(int slot=0);
   std::vector<VortexLine> GetVortexLines(int slot=0);
@@ -61,16 +68,17 @@ public:
   void ExtractSpaceTimeEdge(EdgeIdType);
 
 protected:
+  void VortexObjectsToVortexLines(int slot=0);
   void VortexObjectsToVortexLines(const std::map<FaceIdType, PuncturedFace>& pfs, const std::vector<VortexObject>& vobjs, std::vector<VortexLine>& vlines, bool bezier=false);
   int NewGlobalVortexId();
   void ResetGlobalVortexId();
 
 protected:
-  void AddPuncturedFace(FaceIdType, int slot, ChiralityType chirality, const double pos[3]);
-  void AddPuncturedEdge(EdgeIdType, ChiralityType chirality, double t);
+  void AddPuncturedFace(FaceIdType, int slot, ChiralityType chirality, const float pos[3]);
+  void AddPuncturedEdge(EdgeIdType, ChiralityType chirality, float t);
 
-  bool FindFaceZero(int n, const double X[][3], const double re[], const double im[], double pos[3]) const;
-  bool FindSpaceTimeEdgeZero(const double re[], const double im[], double &t) const;
+  bool FindFaceZero(int n, const float X[][3], const float re[], const float im[], float pos[3]) const;
+  bool FindSpaceTimeEdgeZero(const float re[], const float im[], float &t) const;
 
 protected:
   std::map<FaceIdType, PuncturedFace> _punctured_faces, _punctured_faces1; 
@@ -88,7 +96,12 @@ protected:
   const GLDatasetBase *_dataset;
   bool _gauge; 
   bool _archive;
+  bool _gpu;
   unsigned int _interpolation_mode;
+  float _pertubation; // used for stochastic analysis
+  float _extent_threshold;
+
+  struct ctx_vfgpu_t *_vfgpu_ctx;
 
 private:
   static void *execute_thread_helper(void *ctx);

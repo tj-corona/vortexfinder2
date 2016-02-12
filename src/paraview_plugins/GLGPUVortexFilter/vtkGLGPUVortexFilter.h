@@ -12,6 +12,10 @@ public:
   static vtkGLGPUVortexFilter *New();
   vtkTypeMacro(vtkGLGPUVortexFilter, vtkImageAlgorithm);
 
+  void SetUseGPU(bool);
+  void SetMeshType(int);
+  void SetExtentThreshold(double);
+
 protected:
   vtkGLGPUVortexFilter();
   ~vtkGLGPUVortexFilter();
@@ -26,6 +30,11 @@ private:
 private:
   vtkGLGPUVortexFilter(const vtkGLGPUVortexFilter&);
   void operator=(const vtkGLGPUVortexFilter&);
+
+private:
+  bool bUseGPU;
+  int iMeshType;
+  double dExtentThreshold;
 };
 
 #endif

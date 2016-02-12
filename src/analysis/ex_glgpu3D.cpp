@@ -10,6 +10,7 @@ static int nogauge = 0,
            verbose = 0, 
            benchmark = 0, 
            archive = 0,
+           gpu = 0,
            nthreads = 0, 
            tet = 0;
 static int T0=0, T=1; // start and length of timesteps
@@ -20,6 +21,7 @@ static struct option longopts[] = {
   {"nogauge", no_argument, &nogauge, 1},
   {"benchmark", no_argument, &benchmark, 1}, 
   {"archive", no_argument, &archive, 1}, 
+  {"gpu", no_argument, &gpu, 1}, 
   {"tet", no_argument, &tet, 1},
   {"input", required_argument, 0, 'i'},
   {"output", required_argument, 0, 'o'},
@@ -106,6 +108,9 @@ int main(int argc, char **argv)
 
   if (archive)
     extractor.SetArchive(true);
+
+  if (gpu)
+    extractor.SetGPU(true);
  
   extractor.ExtractFaces(0);
   extractor.TraceOverSpace(0);

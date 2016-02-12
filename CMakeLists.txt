@@ -4,43 +4,40 @@ cmake_minimum_required (VERSION 2.8.12)
 if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
 
   # Build as a plugin within ParaView
-
+  
   # Find and Include ParaView
   if(NOT ParaView_SOURCE_DIR)
-    find_package(ParaView REQUIRED)
-    include(${PARAVIEW_USE_FILE})
+    FIND_PACKAGE(ParaView REQUIRED)
+    INCLUDE(${PARAVIEW_USE_FILE})
   else()
     include_directories(${VTK_INCLUDE_DIRS})
   endif()
 
   # use Boost, since C++11 is not supported by ParaView
-  if(TARGET boost)
-    ExternalProject_Get_Property(boost install_dir)
-    include_directories(${install_dir})
-  else()
-    find_package(Boost REQUIRED COMPONENTS thread system)
-    include_directories(${Boost_INCLUDE_DIR})
-  endif()
+  find_package (Boost REQUIRED COMPONENTS thread system)
+  include_directories (${Boost_INCLUDE_DIR})
 
   # Set Protobuf flags to point to ParaView's Protobuf
-  vtk_module_load(vtkprotobuf)
-  list(GET vtkprotobuf_INCLUDE_DIRS 0 PROTOBUF_INCLUDE_DIR)
-  set(PROTOBUF_LIBRARY $<TARGET_FILE:protobuf>)
-  set(PROTOBUF_PROTOC_EXECUTABLE $<TARGET_FILE:protoc_compiler>)
+  # FIND_PACKAGE(Protobuf REQUIRED)
+  # set (PROTOBUF_INCLUDE_DIR ${ParaView_SOURCE_DIR}/ThirdParty/protobuf/vtkprotobuf/src)
+  # set (PROTOBUF_LIBRARY ${ParaView_BINARY_DIR}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}protobuf${CMAKE_SHARED_LIBRARY_SUFFIX})
+  # set (PROTOBUF_PROTOC_EXECUTABLE ${ParaView_BINARY_DIR}/bin/protoc)
 
-  set(WITH_VTK ON)
-  set(WITH_PARAVIEW ON)
+  set (WITH_PROTOBUF OFF)
+  set (WITH_PARAVIEW ON)
 
 else()
 
   # Standalone build
 
+  option (WITH_PROTOBUF ON)
+  option (WITH_ARMA "Build with Armadillo" OFF)
   option (WITH_TESTS "Build the tests" OFF)
   option (WITH_CUDA "Build with CUDA" OFF)
   option (WITH_LIBMESH "Build with libMesh" OFF)
+  option (WITH_NETCDF "Build with NetCDF" OFF)
   option (WITH_PNETCDF "Build with parallel-netcdf" OFF)
   option (WITH_QT "Build with Qt" OFF)
-  option (WITH_CUDA "Build with CUDA" OFF)
   option (WITH_VTK "Build with VTK" OFF)
   option (WITH_PARAVIEW "Build paraview plugins" OFF)
   option (WITH_CXX11 "Build with C++11" OFF)
@@ -93,9 +90,14 @@ else()
     list (APPEND CMAKE_CXX_FLAGS ${OpenMP_CXX_FLAGS})
   endif ()
 
+  if (WITH_NETCDF)
+    find_package (NetCDF REQUIRED)
+    include_directories (${NETCDF_INCLUDES})
+  endif ()
+
   if (WITH_LIBMESH)
     find_package (MPI REQUIRED)
-
+    
     set (LIBMESH_DIR "/usr" CACHE PATH "The installed path for libMesh")
     set (LIBMESH_INCLUDE_DIR "${LIBMESH_DIR}/include")
     set (LIBMESH_LIBRARY_DIR "${LIBMESH_DIR}/lib")
@@ -108,10 +110,10 @@ else()
       set (NETCDF_LIBRARY "${LIBMESH_DIR}/lib/libnetcdf.so")
       set (LIBMESH_LIBRARY "${LIBMESH_LIBRARY_DIR}/libmesh_opt.so")
     endif ()
-
+    
     set (PETSC_DIR "/usr" CACHE PATH "The installed path for PETSc")
     set (PETSC_INCLUDE_DIR "${PETSC_DIR}/include")
-
+    
     include_directories (
       ${LIBMESH_INCLUDE_DIR}
       ${PETSC_INCLUDE_DIR}
@@ -136,12 +138,15 @@ else()
 
   if (WITH_CUDA)
     find_package (CUDA REQUIRED)
+    set (CUDA_PROPAGATE_HOST_FLAGS OFF)
   endif ()
 
 endif()
 
-find_package (Protobuf REQUIRED)
-include_directories (${PROTOBUF_INCLUDE_DIR})
+if (WITH_PROTOBUF)
+  find_package (Protobuf REQUIRED)
+  include_directories (${PROTOBUF_INCLUDE_DIR})
+endif ()
 
 # boost options
 set (Boost_USE_STATIC_LIBS ON)

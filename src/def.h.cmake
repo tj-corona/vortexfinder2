@@ -3,11 +3,12 @@
 
 #cmakedefine WITH_PROTOBUF 1
 #cmakedefine WITH_CUDA 1
+#cmakedefine WITH_ARMA 1
 #cmakedefine WITH_LIBMESH 1
+#cmakedefine WITH_NETCDF 1
 #cmakedefine WITH_PNETCDF 1
 #cmakedefine WITH_QT 1
 #cmakedefine WITH_VTK 1
-#cmakedefine WITH_CUDA 1
 #cmakedefine WITH_PARAVIEW 1
 #cmakedefine WITH_CXX11 1
 
@@ -31,6 +32,11 @@ typedef unsigned int ElemIdType;
 #endif
 
 typedef signed char ChiralityType;
+
+enum {
+  GLGPU3D_MESH_HEX,
+  GLGPU3D_MESH_TET
+};
 
 // NetCDF error handling
 #define NC_SAFE_CALL(call) {\

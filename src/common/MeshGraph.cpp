@@ -2,6 +2,7 @@
 #include <cassert>
 #include <climits>
 #include <cstdio>
+#include <climits>
 
 #if WITH_PROTOBUF
 #include "MeshGraph.pb.h"
