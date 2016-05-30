@@ -25,6 +25,7 @@ if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
 
   set (WITH_PROTOBUF OFF)
   set (WITH_PARAVIEW ON)
+  option (WITH_CXX11 "Build with C++11" ON)
 
 else()
 
