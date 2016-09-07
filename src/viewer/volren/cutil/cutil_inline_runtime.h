@@ -77,7 +77,6 @@ inline void __cutilExit(int argc, char **argv)
     exit(EXIT_SUCCESS);
 }
 
-#define MIN(a,b) ((a < b) ? a : b)
 #define MAX(a,b) ((a > b) ? a : b)
 
 // Beginning of GPU Architecture definitions

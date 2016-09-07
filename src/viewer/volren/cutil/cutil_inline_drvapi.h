@@ -362,7 +362,6 @@ inline void __cuCtxSync(const char *file, const int line )
     }
 }
 
-#define MIN(a,b) ((a < b) ? a : b)
 #define MAX(a,b) ((a > b) ? a : b)
 
 // Beginning of GPU Architecture definitions
