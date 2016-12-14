@@ -10,8 +10,11 @@
 #include "def.h"
 #include "trackball.h"
 #include "common/Inclusions.h"
-#include "common/DataInfo.pb.h"
 #include "common/VortexTransition.h"
+
+#ifdef WITH_ROCKSDB
+#include <rocksdb/db.h>
+#endif
 
 namespace ILines {class ILRender;}
 
@@ -45,6 +48,9 @@ public:
   void LoadInclusionsFromTextFile(const std::string& filename);
 
   void SetData(const std::string& dataname, int ts, int tl);
+#if WITH_ROCKSDB
+  void SetDB(rocksdb::DB* db);
+#endif 
   void LoadTimeStep(int t);
 
   void SetVortexTransition(const VortexTransition* vt);
@@ -64,6 +70,7 @@ protected:
   void keyPressEvent(QKeyEvent*); 
   void wheelEvent(QWheelEvent*); 
 
+  void renderMDS();
   void renderVortexIds();
   void renderVortexLines(); 
   void renderVortexPoints(); 
@@ -86,7 +93,7 @@ private:
 private: //data
   // std::vector<VortexLine> _vortex_liness;
   // std::vector<FieldLine> _fieldlines;
-  PBDataInfo _data_info;
+  // PBDataInfo _data_info;
   std::string _dataname;
   int _timestep;
   int _ts, _tl;
@@ -121,8 +128,21 @@ private: // vortex line rendering
   std::vector<GLubyte> vortex_tube_colors; 
   std::vector<GLuint> vortex_tube_indices_lines, vortex_tube_indices_vertices;
 
+private: //HDR
+  typedef struct {
+    int frame;
+    float B[3];
+    float Kx; // Kx
+    float Jxext;
+    float V; // voltage
+    } vfgpu_hdr_t;
+  std::vector<vfgpu_hdr_t> vfgpu_hdrs;
+
+private: // MDS
+  std::vector<float> v_mds_coords;
+
 private: // history line render
-  const int h_max;
+  int h_max;
   QVector<std::vector<GLfloat> > h_line_vertices;
   QVector<std::vector<GLubyte> > h_line_colors;
   QVector<std::vector<GLsizei> > h_line_vert_count;
@@ -157,9 +177,13 @@ private: // id rendering
   QVector<int> _vids;
   QVector<QVector3D> _vids_coord;
   QVector<QColor> _vids_colors;
+  QVector<float> _vids_speed;
 
 private: // GLGPU
   GLGPUDataset *_ds;
+#if WITH_ROCKSDB
+  rocksdb::DB *_db;
+#endif
 }; 
 
 #endif

@@ -16,12 +16,8 @@
 #include "vfgpu/vfgpu.h"
 #endif
 
-#if WITH_CXX11
 #include <thread>
 #include <chrono>
-#else
-#include <boost/thread.hpp>
-#endif
 
 typedef struct {
   VortexExtractor *extractor;
@@ -30,8 +26,6 @@ typedef struct {
   int type; // 0: face; 1: edge
   int slot;
 } extractor_thread_t;
-
-pthread_mutex_t mutex;
 
 VortexExtractor::VortexExtractor() :
   _dataset(NULL), 
@@ -43,21 +37,17 @@ VortexExtractor::VortexExtractor() :
   _extent_threshold(0),
   _interpolation_mode(INTERPOLATION_TRI_BARYCENTRIC | INTERPOLATION_QUAD_BILINEAR)
 {
-  pthread_mutex_init(&mutex, NULL);
+  pthread_mutex_init(&_mutex, NULL);
 
   // probe number of cores
-#if WITH_CXX11
   _nthreads = std::thread::hardware_concurrency();
-#else
-  _nthreads = boost::thread::hardware_concurrency();
-#endif
   if (_nthreads == 0) _nthreads = 1;
   // fprintf(stderr, "nthreads=%d\n", _nthreads);
 }
 
 VortexExtractor::~VortexExtractor()
 {
-  pthread_mutex_destroy(&mutex);
+  pthread_mutex_destroy(&_mutex);
 
 #ifdef WITH_CUDA
   if (_gpu && _vfgpu_ctx)
@@ -119,7 +109,7 @@ void VortexExtractor::SaveVortexLines(int slot)
   std::string info;
   Dataset()->SerializeDataInfoToString(info);
 
-  ::SaveVortexLines(vlines, info, os.str());
+  // ::SaveVortexLines(vlines, info, os.str()); // FIXME!
 }
 
 std::vector<VortexLine> VortexExtractor::GetVortexLines(int slot)
@@ -219,7 +209,7 @@ bool VortexExtractor::LoadPuncturedFaces(int slot)
 
 void VortexExtractor::AddPuncturedFace(FaceIdType id, int slot, ChiralityType chirality, const float pos[])
 {
-  pthread_mutex_lock(&mutex);
+  pthread_mutex_lock(&_mutex);
   
   // face
   PuncturedFace pf;
@@ -262,12 +252,12 @@ void VortexExtractor::AddPuncturedFace(FaceIdType id, int slot, ChiralityType ch
       fidx[0], fidx[1], fidx[2], fidx[3], chirality, pos[0], pos[1], pos[2]);
 #endif
   
-  pthread_mutex_unlock(&mutex);
+  pthread_mutex_unlock(&_mutex);
 }
 
 void VortexExtractor::AddPuncturedEdge(EdgeIdType id, ChiralityType chirality, float t)
 {
-  pthread_mutex_lock(&mutex);
+  pthread_mutex_lock(&_mutex);
   
   // edge
   PuncturedEdge pe;
@@ -289,7 +279,7 @@ void VortexExtractor::AddPuncturedEdge(EdgeIdType id, ChiralityType chirality, f
     // vc.SetChirality(eid+2, chirality * echirality);
   }
 #endif
-  pthread_mutex_unlock(&mutex);
+  pthread_mutex_unlock(&_mutex);
 }
   
 bool VortexExtractor::FindSpaceTimeEdgeZero(const float re[], const float im[], float &t) const
@@ -307,8 +297,8 @@ bool VortexExtractor::FindSpaceTimeEdgeZero(const float re[], const float im[], 
 
 void VortexExtractor::RelateOverTime()
 {
-  fprintf(stderr, "Relating over time, #pf0=%ld, #pf1=%ld, #pe=%ld\n", 
-      _punctured_faces.size(), _punctured_faces1.size(), _punctured_edges.size());
+  // fprintf(stderr, "Relating over time, #pf0=%ld, #pf1=%ld, #pe=%ld\n", 
+  //     _punctured_faces.size(), _punctured_faces1.size(), _punctured_edges.size());
   const MeshGraph *mg = _dataset->MeshGraph();
 
   _related_faces.clear();
@@ -475,7 +465,7 @@ void VortexExtractor::TraceOverSpace(int slot)
     slot == 0 ? _punctured_faces : _punctured_faces1;
   const MeshGraph *mg = _dataset->MeshGraph();
   
-  fprintf(stderr, "tracing over space, #pcs=%ld, #pfs=%ld.\n", pcs.size(), pfs.size());
+  // fprintf(stderr, "tracing over space, #pcs=%ld, #pfs=%ld.\n", pcs.size(), pfs.size());
  
 #if 0
   for (std::map<CellIdType, PuncturedCell>::iterator it = pcs.begin(); it != pcs.end(); it ++) {
@@ -531,8 +521,8 @@ void VortexExtractor::TraceOverSpace(int slot)
     visited.clear();
 
     // fprintf(stderr, "#ordinary=%ld, #special=%ld\n", ordinary_pcells.size(), special_pcells.size());
-    if (special_pcells.size()>0) 
-      fprintf(stderr, "SPECIAL\n");
+    // if (special_pcells.size()>0) 
+    //   fprintf(stderr, "SPECIAL\n");
 
     /// 2. trace vortex lines
     VortexObject vobj; 
@@ -569,7 +559,7 @@ void VortexExtractor::TraceOverSpace(int slot)
               trace.push_back(f);
               c = cell.neighbor_cells[i]; 
               traced = true;
-            }
+            } 
           }
         }
         if (!traced) break;
@@ -632,7 +622,7 @@ void VortexExtractor::TraceOverSpace(int slot)
     vobjs.push_back(vobj);
   }
 
-  fprintf(stderr, "#vortex_objs=%ld\n", vobjs.size());
+  // fprintf(stderr, "#vortex_objs=%ld\n", vobjs.size());
 }
 
 void VortexExtractor::VortexObjectsToVortexLines(
@@ -686,7 +676,7 @@ int VortexExtractor::NewGlobalVortexId()
 }
 
 // only relate ids
-void VortexExtractor::TraceOverTime()
+VortexTransitionMatrix VortexExtractor::TraceOverTime()
 {
   const int n0 = _vortex_objects.size(), 
             n1 = _vortex_objects1.size();
@@ -716,8 +706,10 @@ next:
   }
 
   // if (_archive) tm.SaveToFile(Dataset()->DataName(), Dataset()->TimeStep(0), Dataset()->TimeStep(1));
-  tm.SaveToFile(Dataset()->DataName(), Dataset()->TimeStep(0), Dataset()->TimeStep(1));
   _vortex_transition.AddMatrix(tm);
+  // tm.Print();
+
+  return tm;
 
 #if 0
   std::vector<int> ids0(n0), ids1(n1);
@@ -826,10 +818,8 @@ void VortexExtractor::ExtractFaces_GPU(int slot)
 
   vfgpu_upload_data(_vfgpu_ctx, slot, gh, re, im);
  
-#if WITH_CXX11
   typedef std::chrono::high_resolution_clock clock;
   auto t0 = clock::now();
-#endif
 
   int pfcount; 
   vfgpu_pf_t *pf; 
@@ -853,11 +843,9 @@ void VortexExtractor::ExtractFaces_GPU(int slot)
   vfgpu_get_pflist(_vfgpu_ctx, &pfcount, &pf);
 #endif
 
-#if WITH_CXX11
   auto t1 = clock::now();
   float elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / 1000000000.0; 
   fprintf(stderr, "t_fgpu=%f\n", elapsed);
-#endif
 
   for (int i=0; i<pfcount; i++) {
     float pos[3] = {pf[i].pos[0], pf[i].pos[1], pf[i].pos[2]};
@@ -887,21 +875,17 @@ void VortexExtractor::ExtractEdges_GPU()
 
   const int count = h.dims[0] * h.dims[1] * h.dims[2];
  
-#if WITH_CXX11
   typedef std::chrono::high_resolution_clock clock;
   auto t0 = clock::now();
-#endif
 
   int pecount; 
   vfgpu_pe_t *pe; 
   vfgpu_extract_edges(_vfgpu_ctx);
   vfgpu_get_pelist(_vfgpu_ctx, &pecount, &pe); 
 
-#if WITH_CXX11
   auto t1 = clock::now();
   float elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / 1000000000.0; 
   fprintf(stderr, "t_egpu=%f\n", elapsed);
-#endif
 
   for (int i=0; i<pecount; i++) {
     AddPuncturedEdge(pe[i].eid, pe[i].chirality, 0);
@@ -911,10 +895,8 @@ void VortexExtractor::ExtractEdges_GPU()
 
 void VortexExtractor::ExtractFaces(int slot) 
 {
-#if WITH_CXX11
   typedef std::chrono::high_resolution_clock clock;
   auto t0 = clock::now();
-#endif
 
   if (!LoadPuncturedFaces(slot)) {
     if (_gpu) {
@@ -948,11 +930,9 @@ void VortexExtractor::ExtractFaces(int slot)
     if (_archive) SavePuncturedFaces(slot);
   }
  
-#if WITH_CXX11
   auto t1 = clock::now();
   float elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / 1000000000.0; 
   fprintf(stderr, "t_f=%f\n", elapsed);
-#endif
 }
 
 void VortexExtractor::ExtractFaces(std::vector<FaceIdType> faces, int slot, int &positive, int &negative)
@@ -975,10 +955,8 @@ void VortexExtractor::ExtractFaces(std::vector<FaceIdType> faces, int slot, int 
 
 void VortexExtractor::ExtractEdges() 
 {
-#if WITH_CXX11
   typedef std::chrono::high_resolution_clock clock;
   auto t0 = clock::now();
-#endif
 
   if (!LoadPuncturedEdges()) {
     if (_gpu) {
@@ -1012,11 +990,9 @@ void VortexExtractor::ExtractEdges()
     if (_archive) SavePuncturedEdges();
   }
   
-#if WITH_CXX11
   auto t1 = clock::now();
   float elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / 1000000000.0; 
   fprintf(stderr, "t_e=%f\n", elapsed);
-#endif
 }
 
 void VortexExtractor::ExtractSpaceTimeEdge(EdgeIdType id)
@@ -1213,4 +1189,16 @@ bool VortexExtractor::FindFaceZero(int n, const float X_[][3], const float re[],
   }
 
   return succ;
+}
+
+void VortexExtractor::SetVortexObjects(const std::vector<VortexObject>& vobj, int slot)
+{
+  if (slot == 0) _vortex_objects = vobj;
+  else _vortex_objects1 = vobj;
+}
+
+const std::vector<VortexObject>& VortexExtractor::GetVortexObjects(int slot) const 
+{
+  if (slot == 0) return _vortex_objects;
+  else return _vortex_objects1;
 }

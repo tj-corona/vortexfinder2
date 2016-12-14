@@ -30,11 +30,11 @@ static bool LoadTimesteps(const std::string& dataname)
     bool succ = false;
     if (!succ) {
       succ = GLGPU_IO_Helper_ReadBDAT(
-          fname, h, NULL, NULL, NULL, NULL, true);
+          fname, h, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true);
     } 
     if (!succ) {
       succ = GLGPU_IO_Helper_ReadLegacy(
-          fname, h, NULL, NULL, NULL, NULL, true);
+          fname, h, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true);
     }
     if (!succ) {
       fprintf(stderr, "cannot open file: %s\n", fname);
@@ -57,8 +57,9 @@ static float Dist(const std::string& dataname, int frame, int lvid0, int lvid1)
 
   std::string info_bytes;
   std::vector<VortexLine> vortex_liness;
-  if (!::LoadVortexLines(vortex_liness, info_bytes, filename))
-    return DBL_MAX;
+  diy::unserializeFromFile(filename, vortex_liness);
+  // if (!::LoadVortexLines(vortex_liness, info_bytes, filename))
+  //   return DBL_MAX;
 
   return MinimumDist(vortex_liness[lvid0], vortex_liness[lvid1]);
 }

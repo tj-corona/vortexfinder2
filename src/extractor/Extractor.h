@@ -53,10 +53,12 @@ public:
   
   void SaveVortexLines(int slot=0);
   std::vector<VortexLine> GetVortexLines(int slot=0);
+  void SetVortexObjects(const std::vector<VortexObject>&, int slot);
+  const std::vector<VortexObject>& GetVortexObjects(int slot) const;
 
   void TraceVirtualCells();
   void TraceOverSpace(int slot=0);
-  void TraceOverTime();
+  VortexTransitionMatrix TraceOverTime();
   void AnalyzeTransition();
 
   void RelateOverTime();
@@ -73,10 +75,11 @@ protected:
   int NewGlobalVortexId();
   void ResetGlobalVortexId();
 
-protected:
+public:
   void AddPuncturedFace(FaceIdType, int slot, ChiralityType chirality, const float pos[3]);
   void AddPuncturedEdge(EdgeIdType, ChiralityType chirality, float t);
 
+protected:
   bool FindFaceZero(int n, const float X[][3], const float re[], const float im[], float pos[3]) const;
   bool FindSpaceTimeEdgeZero(const float re[], const float im[], float &t) const;
 
@@ -108,6 +111,7 @@ private:
   void execute_thread(int nthreads, int tid, int type, int slot);
 
   int _nthreads;
+  pthread_mutex_t _mutex;
 }; 
 
 #endif

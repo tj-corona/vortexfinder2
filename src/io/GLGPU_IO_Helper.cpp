@@ -1,5 +1,6 @@
 #include "def.h"
 #include "GLGPU_IO_Helper.h"
+#include "glpp/GL_post_process.h"
 #include <cmath>
 #include <cassert>
 #include <cstdio>
@@ -26,8 +27,8 @@ static const char GLGPU_LEGACY_TAG[] = "CA02";
 bool GLGPU_IO_Helper_ReadBDAT(
     const std::string& filename, 
     GLHeader &h,
-    float **rho, float **phi, float **re, float **im, 
-    bool header_only)
+    float **rho, float **phi, float **re, float **im, float **Jx, float **Jy, float **Jz,
+    bool header_only, bool supercurrent)
 {
   BDATReader *reader = new BDATReader(filename); 
   if (!reader->Valid()) {
@@ -166,6 +167,9 @@ bool GLGPU_IO_Helper_ReadBDAT(
       h.cell_lengths[i] = h.lengths[i] / (h.dims[i] - 1);
   }
 
+  if (supercurrent)
+    GLGPU_IO_Helper_ComputeSupercurrent(h, *re, *im, Jx, Jy, Jz);
+
   delete reader;
   return true;
 }
@@ -173,8 +177,8 @@ bool GLGPU_IO_Helper_ReadBDAT(
 bool GLGPU_IO_Helper_ReadLegacy(
     const std::string& filename, 
     GLHeader& h,
-    float **rho, float **phi, float **re, float **im, 
-    bool header_only)
+    float **rho, float **phi, float **re, float **im, float **Jx, float **Jy, float **Jz,
+    bool header_only, bool supercurrent)
 {
   FILE *fp = fopen(filename.c_str(), "rb");
   if (!fp) return false;
@@ -318,6 +322,9 @@ bool GLGPU_IO_Helper_ReadLegacy(
   } else if (datatype == GLGPU_TYPE_DOUBLE) {
     assert(false);
   }
+  
+  if (supercurrent)
+    GLGPU_IO_Helper_ComputeSupercurrent(h, *re, *im, Jx, Jy, Jz);
 
   fclose(fp);
   return true;
@@ -326,8 +333,8 @@ bool GLGPU_IO_Helper_ReadLegacy(
 bool GLGPU_IO_Helper_WriteNetCDF(
     const std::string& filename, 
     GLHeader& h,
-    float *re, 
-    float *im)
+    const float *re, const float *im, 
+    const float *Jx, const float *Jy, const float *Jz)
 {
 #ifdef WITH_LIBMESH
   int ncid; 
@@ -355,18 +362,18 @@ bool GLGPU_IO_Helper_WriteNetCDF(
   NC_SAFE_CALL( nc_def_var(ncid, "phi", NC_FLOAT, 3, dimids, &varids[1]) );
   NC_SAFE_CALL( nc_def_var(ncid, "re", NC_FLOAT, 3, dimids, &varids[2]) );
   NC_SAFE_CALL( nc_def_var(ncid, "im", NC_FLOAT, 3, dimids, &varids[3]) );
-  // NC_SAFE_CALL( nc_def_var(ncid, "Jx", NC_FLOAT, 3, dimids, &varids[4]) );
-  // NC_SAFE_CALL( nc_def_var(ncid, "Jy", NC_FLOAT, 3, dimids, &varids[5]) );
-  // NC_SAFE_CALL( nc_def_var(ncid, "Jz", NC_FLOAT, 3, dimids, &varids[6]) );
+  NC_SAFE_CALL( nc_def_var(ncid, "Jx", NC_FLOAT, 3, dimids, &varids[4]) );
+  NC_SAFE_CALL( nc_def_var(ncid, "Jy", NC_FLOAT, 3, dimids, &varids[5]) );
+  NC_SAFE_CALL( nc_def_var(ncid, "Jz", NC_FLOAT, 3, dimids, &varids[6]) );
   NC_SAFE_CALL( nc_enddef(ncid) );
 
   NC_SAFE_CALL( nc_put_vara_float(ncid, varids[0], starts, sizes, rho) ); 
   NC_SAFE_CALL( nc_put_vara_float(ncid, varids[1], starts, sizes, phi) ); 
   NC_SAFE_CALL( nc_put_vara_float(ncid, varids[2], starts, sizes, re) ); 
   NC_SAFE_CALL( nc_put_vara_float(ncid, varids[3], starts, sizes, im) ); 
-  // NC_SAFE_CALL( nc_put_vara_float(ncid, varids[4], starts, sizes, _Jx) ); 
-  // NC_SAFE_CALL( nc_put_vara_float(ncid, varids[5], starts, sizes, _Jy) ); 
-  // NC_SAFE_CALL( nc_put_vara_float(ncid, varids[6], starts, sizes, _Jz) ); 
+  NC_SAFE_CALL( nc_put_vara_float(ncid, varids[4], starts, sizes, _Jx) ); 
+  NC_SAFE_CALL( nc_put_vara_float(ncid, varids[5], starts, sizes, _Jy) ); 
+  NC_SAFE_CALL( nc_put_vara_float(ncid, varids[6], starts, sizes, _Jz) ); 
 
   NC_SAFE_CALL( nc_close(ncid) );
 
@@ -375,4 +382,50 @@ bool GLGPU_IO_Helper_WriteNetCDF(
   assert(false);
   return false;
 #endif
+}
+
+void GLGPU_IO_Helper_ComputeSupercurrent(
+    GLHeader &h, const float *re, const float *im, float **Jx, float **Jy, float **Jz)
+{
+  const int arraySize = h.dims[0] * h.dims[1] * h.dims[2];
+  
+  // GLPP
+  GLPP *pp = new GLPP;
+  // FIXME!
+  pp->dim = h.ndims;
+  pp->Nx = h.dims[0];
+  pp->Ny = h.dims[1];
+  pp->Nz = h.dims[2];
+  pp->NN = arraySize;
+  pp->btype = h.dtype;
+  pp->Lx = h.lengths[0];
+  pp->Ly = h.lengths[1];
+  pp->Lz = h.lengths[2];
+  pp->dx = h.cell_lengths[0];
+  pp->dy = h.cell_lengths[1];
+  pp->dz = h.cell_lengths[2];
+  pp->Bx = h.B[0];
+  pp->By = h.B[1]; 
+  pp->Bz = h.B[2];
+  pp->KEx = h.Kex;
+  pp->psi = (COMPLEX*)malloc(sizeof(COMPLEX)*arraySize);
+  for (int i=0; i<arraySize; i++) {
+    pp->psi[i].re = re[i];
+    pp->psi[i].im = im[i];
+  }
+
+  pp->calc_current();
+  assert(pp->Jx != NULL);
+
+  *Jx = (float*)malloc(sizeof(float)*arraySize);
+  *Jy = (float*)malloc(sizeof(float)*arraySize);
+  *Jz = (float*)malloc(sizeof(float)*arraySize);
+
+  for (int i=0; i<arraySize; i++) {
+    (*Jx)[i] = pp->Jx[i];
+    (*Jy)[i] = pp->Jy[i];
+    (*Jz)[i] = pp->Jz[i];
+  }
+
+  delete pp;
 }

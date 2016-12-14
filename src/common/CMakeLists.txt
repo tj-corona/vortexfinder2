@@ -1,3 +1,21 @@
+set (common_headers
+  diy-ext.hpp
+  FieldLine.h
+  MeshGraphRegular3D.h
+  VortexObject.h
+  Inclusions.h
+  MeshGraphRegular3DTets.h
+  VortexSequence.h 
+  Interval.h
+  Puncture.h
+  VortexTransition.h
+  MeshGraph.h 
+  VortexEvents.h
+  VortexTransitionMatrix.h
+  MeshGraphRegular2D.h
+  VortexLine.h
+)
+
 set (common_sources
   MeshGraph.cpp
   MeshGraphRegular2D.cpp
@@ -17,21 +35,23 @@ set (common_sources
 set (common_protos
   MeshGraph.proto
   DataInfo.proto
-  VortexLine.proto
-  VortexObject.proto
   Inclusions.proto
   FieldLine.proto
   Puncture.proto
 )
 
-if (WITH_PROTOBUF)
-  protobuf_generate_cpp (common_proto_sources common_proto_headers ${common_protos})
+add_library (glcommon SHARED ${common_sources} ${common_proto_sources})
+target_include_directories(glcommon PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+set (deps ${CMAKE_THREAD_LIBS_INIT})
+if (WITH_VTK)
+  list (APPEND deps ${VTK_LIBRARIES})
+endif ()
+if (WITH_ROCKSDB)
+  list (APPEND deps ${RocksDB_LIBRARY})
 endif ()
 
-add_library (glcommon STATIC ${common_sources} ${common_proto_sources})
-target_include_directories(glcommon PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-if (WITH_CXX11)
-  target_link_libraries (glcommon PUBLIC ${PROTOBUF_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
-else ()
-  target_link_libraries (glcommon PUBLIC ${PROTOBUF_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${Boost_LIBRARIES})
-endif ()
+target_link_libraries (glcommon PUBLIC ${deps})
+
+install (FILES ${common_headers} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/common)
+install (TARGETS glcommon DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
