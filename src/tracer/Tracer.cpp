@@ -1,6 +1,18 @@
 #include "Tracer.h"
 #include "io/GLDataset.h"
 #include "common/Utils.hpp"
+#include <cstdio>
+#include <cstdlib>
+#include <climits>
+
+#if WITH_VTK
+#include <vtkSmartPointer.h>
+#include <vtkPointData.h>
+#include <vtkPolyData.h>
+#include <vtkPolyLine.h>
+#include <vtkCellArray.h>
+#include <vtkXMLPolyDataWriter.h>
+#endif
 
 FieldLineTracer::FieldLineTracer()
 {
@@ -19,15 +31,49 @@ void FieldLineTracer::SetDataset(const GLDataset* ds)
 
 void FieldLineTracer::WriteFieldLines(const std::string& filename)
 {
+#if WITH_VTK
+  vtkSmartPointer<vtkPolyData> polyData = vtkPolyData::New();
+  vtkSmartPointer<vtkPoints> points = vtkPoints::New();
+  vtkSmartPointer<vtkCellArray> cells = vtkCellArray::New();
+
+  int nv = 0;
+  for (int i=0; i<_fieldlines.size(); i++) {
+    const FieldLine& l = _fieldlines[i];
+    
+    vtkSmartPointer<vtkPolyLine> polyLine = vtkPolyLine::New();
+    polyLine->GetPointIds()->SetNumberOfIds(l.size()/3);
+
+    int j = 0;
+    for (FieldLine::const_iterator it = l.begin(); it != l.end(); ) {
+      double p[3] = {*(it++), *(it++), *(it++)};
+      // double p[3] = {l[i*3], l[i*3+1], l[i*3+2]};
+      points->InsertNextPoint(p);
+      polyLine->GetPointIds()->SetId(j, j+nv);
+      j ++;
+    }
+    cells->InsertNextCell(polyLine);
+    nv += l.size()/3;
+  }
+
+  polyData->SetPoints(points);
+  polyData->SetLines(cells);
+  
+  vtkSmartPointer<vtkXMLPolyDataWriter> writer = vtkXMLPolyDataWriter::New();
+  writer->SetFileName(filename.c_str());
+  writer->SetInputData(polyData);
+  writer->Write();
+#else
   ::WriteFieldLines(filename, _fieldlines);
+#endif
 }
 
 void FieldLineTracer::Trace()
 {
   fprintf(stderr, "Trace..\n");
 
-  const int nseeds[3] = {8, 9, 8};
-  const double span[3] = {
+  // const int nseeds[3] = {8, 9, 8};
+  const int nseeds[3] = {64, 8, 8};
+  const float span[3] = {
     _ds->Lengths()[0]/(nseeds[0]-1), 
     _ds->Lengths()[1]/(nseeds[1]-1), 
     _ds->Lengths()[2]/(nseeds[2]-1)}; 
@@ -35,7 +81,7 @@ void FieldLineTracer::Trace()
   for (int i=0; i<nseeds[0]; i++) {
     for (int j=0; j<nseeds[1]; j++) {
       for (int k=0; k<nseeds[2]; k++) {
-        double seed[3] = {
+        float seed[3] = {
           i * span[0] + _ds->Origins()[0], 
           j * span[1] + _ds->Origins()[1], 
           k * span[2] + _ds->Origins()[2]}; 
@@ -45,13 +91,13 @@ void FieldLineTracer::Trace()
   }
 }
 
-void FieldLineTracer::Trace(const double seed[3])
+void FieldLineTracer::Trace(const float seed[3])
 {
-  static const int max_length = 1024; 
-  const double h = 0.05; 
-  double X[3] = {seed[0], seed[1], seed[2]}; 
+  static const int max_length = INT_MAX; 
+  const float h = 0.25; 
+  float X[3] = {seed[0], seed[1], seed[2]}; 
 
-  std::list<double> line;
+  FieldLine line;
 
   fprintf(stderr, "Tracing line from X={%f, %f, %f}\n", seed[0], seed[1], seed[2]);
 
@@ -71,19 +117,29 @@ void FieldLineTracer::Trace(const double seed[3])
     if (!RK1(X, -h)) break;
   }
 
-  FieldLine line1(line);
-  _fieldlines.push_back(line1);
+  // fprintf(stderr, "length=%d\n", line.size()/3);
+  if (line.size()/3 > 10)
+    _fieldlines.push_back(line);
 }
 
-bool FieldLineTracer::Supercurrent(const double *X, double *J) const
+bool FieldLineTracer::Supercurrent(const float *X, float *J) const
 {
   return (_ds->Supercurrent(X, J)); 
 }
 
-bool FieldLineTracer::RK1(double *X, double h)
+template <typename T>
+bool FieldLineTracer::RK1(T *X, T h)
 {
-  double J[3]; 
-  if (!Supercurrent(X, J)) return false;
+  T J[3]; 
+  bool succ = Supercurrent(X, J);
+  if (!succ) return false;
+
+  const float threshold = 0.25;
+  float Jmag = sqrt(J[0]*J[0] + J[1]*J[1] + J[2]*J[2]);
+  if (Jmag < threshold) return false;
+
+  // fprintf(stderr, "X={%f, %f, %f}, J={%f, %f, %f}\n", 
+  //     X[0], X[1], X[2], J[0], J[1], J[2]);
 
   X[0] = X[0] + h*J[0]; 
   X[1] = X[1] + h*J[1]; 
@@ -92,26 +148,27 @@ bool FieldLineTracer::RK1(double *X, double h)
   return true; 
 }
 
-bool FieldLineTracer::RK4(double *X, double h)
+template <typename T>
+bool FieldLineTracer::RK4(T *X, T h)
 {
-  double X0[3] = {X[0], X[1], X[2]};
-  double J[3]; 
+  T X0[3] = {X[0], X[1], X[2]};
+  T J[3]; 
   
   // 1st RK step
   if (!Supercurrent(X, J)) return false;
-  float k1[3]; 
+  T k1[3]; 
   for (int i=0; i<3; i++) k1[i] = h * J[i];
   for (int i=0; i<3; i++) X[i] = X0[i] + 0.5 * k1[i];
   
   // 2nd RK step
   if (!Supercurrent(X, J)) return false;
-  float k2[3]; 
+  T k2[3]; 
   for (int i=0; i<3; i++) k2[i] = h * J[i];
   for (int i=0; i<3; i++) X[i] = X0[i] + 0.5 * k2[i];
   
   // 3rd RK step
   if (!Supercurrent(X, J)) return false;
-  float k3[3]; 
+  T k3[3]; 
   for (int i=0; i<3; i++) k3[i] = h * J[i];
   for (int i=0; i<3; i++) X[i] = X0[i] + k3[i];
 

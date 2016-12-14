@@ -2,15 +2,15 @@
 #include <sstream>
 #include <cstdio>
 #include <climits>
+#include <cassert>
 
 VortexTransitionMatrix::VortexTransitionMatrix() :
-  _t0(INT_MAX), _t1(INT_MAX),
   _n0(INT_MAX), _n1(INT_MAX)
 {
 }
 
 VortexTransitionMatrix::VortexTransitionMatrix(int t0, int t1, int n0, int n1) :
-  _t0(t0), _t1(t1), 
+  _interval(std::make_pair(t0, t1)), 
   _n0(n0), _n1(n1)
 {
   _match.resize(_n0*_n1);
@@ -20,60 +20,14 @@ VortexTransitionMatrix::~VortexTransitionMatrix()
 {
 }
 
-bool VortexTransitionMatrix::LoadFromFile(const std::string& filename)
-{
-  FILE *fp = fopen(filename.c_str(), "rb");
-  if (!fp) return false;
-
-  fread(&_t0, sizeof(int), 1, fp);
-  fread(&_t1, sizeof(int), 1, fp);
-  fread(&_n0, sizeof(int), 1, fp);
-  fread(&_n1, sizeof(int), 1, fp);
-
-  _match.resize(_n0*_n1);
-  fread((char*)_match.data(), sizeof(int), _n0*_n1, fp);
-
-  fclose(fp);
-
-  if (Valid()) 
-    Normalize();
-
-  return Valid();
-}
-
-bool VortexTransitionMatrix::SaveToFile(const std::string& filename) const
-{
-  if (!Valid()) return false;
-
-  FILE *fp = fopen(filename.c_str(), "wb");
-  if (!fp) return false;
-
-  fwrite(&_t0, sizeof(int), 1, fp);
-  fwrite(&_t1, sizeof(int), 1, fp);
-  fwrite(&_n0, sizeof(int), 1, fp);
-  fwrite(&_n1, sizeof(int), 1, fp);
-  fwrite((char*)_match.data(), sizeof(int), _n0*_n1, fp);
-
-  fclose(fp);
-  return true;
-}
-
-bool VortexTransitionMatrix::LoadFromFile(const std::string& dataname, int t0, int t1)
-{
-  return LoadFromFile(MatrixFileName(dataname, t0, t1));
-}
-
-bool VortexTransitionMatrix::SaveToFile(const std::string& dataname, int t0, int t1) const 
-{
-  return SaveToFile(MatrixFileName(dataname, t0, t1));
-}
-
+#if 0
 std::string VortexTransitionMatrix::MatrixFileName(const std::string& dataname, int t0, int t1) const
 {
   std::stringstream ss;
   ss << dataname << ".match." << t0 << "." << t1;
   return ss.str();
 }
+#endif
 
 int VortexTransitionMatrix::operator()(int i, int j) const
 {
@@ -189,5 +143,20 @@ void VortexTransitionMatrix::Modularize()
     _lhss.push_back(lhs);
     _rhss.push_back(rhs);
     _events.push_back(event);
+  }
+
+  moving_speeds.resize(_n0, NAN);
+}
+
+void VortexTransitionMatrix::Print() const
+{
+  fprintf(stderr, "Interval={%d, %d}, n0=%d, n1=%d\n", 
+      _interval.first, _interval.second, _n0, _n1);
+
+  for (int i=0; i<_n0; i++) {
+    for (int j=0; j<_n1; j++) {
+      fprintf(stderr, "%d\t", at(i, j));
+    }
+    fprintf(stderr, "\n");
   }
 }

@@ -11,7 +11,7 @@ public:
   GLGPU3DDataset(); 
   ~GLGPU3DDataset();
   
-  void ComputeSupercurrentField(int slot=0);
+  // void ComputeSupercurrentField(int slot=0);
 
 public: // mesh graph
   void SetMeshType(int); // hex or tet
@@ -39,7 +39,7 @@ public: // data access
   bool Psi(const float X[3], float &re, float &im) const;
 
   // Supercurrent field
-  bool Supercurrent(const float X[3], float J[3]) const;
+  bool Supercurrent(const float X[3], float J[3], int slot=0) const;
 
 private:
   bool _mesh_type;

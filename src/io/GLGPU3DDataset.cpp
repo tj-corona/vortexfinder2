@@ -119,6 +119,7 @@ std::vector<ElemIdType> GLGPU3DDataset::GetNeighborIds(ElemIdType elem_id) const
 }
 #endif
 
+#if 0
 void GLGPU3DDataset::ComputeSupercurrentField(int slot)
 {
   const int nvoxels = dims()[0]*dims()[1]*dims()[2];
@@ -163,6 +164,7 @@ void GLGPU3DDataset::ComputeSupercurrentField(int slot)
     }
   }
 }
+#endif
 
 bool GLGPU3DDataset::Psi(const float X[3], float &re, float &im) const
 {
@@ -170,13 +172,12 @@ bool GLGPU3DDataset::Psi(const float X[3], float &re, float &im) const
   return false;
 }
 
-#if 0
-bool GLGPU3DDataset::Supercurrent(const float X[3], float J[3]) const
+bool GLGPU3DDataset::Supercurrent(const float X[3], float J[3], int slot) const
 {
   static const int st[3] = {0};
   float gpt[3];
-  const float *j[3] = {_Jx, _Jy, _Jz};
-  
+  const float *j[3] = {_Jx[slot], _Jy[slot], _Jz[slot]};
+ 
   Pos2Grid(X, gpt);
   if (isnan(gpt[0]) || gpt[0]<=1 || gpt[0]>dims()[0]-2 || 
       isnan(gpt[1]) || gpt[1]<=1 || gpt[1]>dims()[1]-2 || 
@@ -186,7 +187,6 @@ bool GLGPU3DDataset::Supercurrent(const float X[3], float J[3]) const
     return false;
   else return true;
 }
-#endif
 
 CellIdType GLGPU3DDataset::Pos2CellId(const float X[]) const
 {

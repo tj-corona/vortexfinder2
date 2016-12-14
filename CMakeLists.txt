@@ -1,10 +1,15 @@
 project (vortexfinder2)
-cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 3.1.3)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include_directories (${CMAKE_CURRENT_SOURCE_DIR}/diy/include)
 
 if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
 
   # Build as a plugin within ParaView
-  
+
   # Find and Include ParaView
   if(NOT ParaView_SOURCE_DIR)
     FIND_PACKAGE(ParaView REQUIRED)
@@ -13,17 +18,6 @@ if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
     include_directories(${VTK_INCLUDE_DIRS})
   endif()
 
-  # use Boost, since C++11 is not supported by ParaView
-  find_package (Boost REQUIRED COMPONENTS thread system)
-  include_directories (${Boost_INCLUDE_DIR})
-
-  # Set Protobuf flags to point to ParaView's Protobuf
-  # FIND_PACKAGE(Protobuf REQUIRED)
-  # set (PROTOBUF_INCLUDE_DIR ${ParaView_SOURCE_DIR}/ThirdParty/protobuf/vtkprotobuf/src)
-  # set (PROTOBUF_LIBRARY ${ParaView_BINARY_DIR}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}protobuf${CMAKE_SHARED_LIBRARY_SUFFIX})
-  # set (PROTOBUF_PROTOC_EXECUTABLE ${ParaView_BINARY_DIR}/bin/protoc)
-
-  set (WITH_PROTOBUF OFF)
   set (WITH_PARAVIEW ON)
   option (WITH_CXX11 "Build with C++11" OFF)
 
@@ -31,7 +25,6 @@ else()
 
   # Standalone build
 
-  option (WITH_PROTOBUF ON)
   option (WITH_ARMA "Build with Armadillo" OFF)
   option (WITH_TESTS "Build the tests" OFF)
   option (WITH_CUDA "Build with CUDA" OFF)
@@ -40,13 +33,20 @@ else()
   option (WITH_PNETCDF "Build with parallel-netcdf" OFF)
   option (WITH_QT "Build with Qt" OFF)
   option (WITH_VTK "Build with VTK" OFF)
+  option (WITH_TBB "Build with TBB" OFF)
+  option (WITH_ROCKSDB "Build with RocksDB" OFF)
   option (WITH_PARAVIEW "Build paraview plugins" OFF)
-  option (WITH_CXX11 "Build with C++11" OFF)
+  option (WITH_FORTRAN "Enable fortran" OFF)
 
   set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake-modules)
   set (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
   set (LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
   set (CMAKE_INCLUDE_CURRENT_DIR ON)
+
+  if (WITH_FORTRAN)
+    enable_language (Fortran)
+    find_package (LAPACK REQUIRED)
+  endif ()
 
   # Always use a full RPATH
   if(APPLE)
@@ -62,43 +62,24 @@ else()
     endif()
   endif()
 
-  # C++11/Boost
-  if (WITH_CXX11)
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-    endif ()
-  else ()
-    find_package (Boost REQUIRED COMPONENTS thread system)
-    include_directories (${Boost_INCLUDE_DIR})
-  endif ()
-
-  if (APPLE)
-    set (CMAKE_MACOSX_RPATH ON)
-    set (CMAKE_SKIP_BUILD_RPATH FALSE)
-    set (CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-    set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-    set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-    list (FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
-      "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-    if ("${isSystemDir}" STREQUAL "-1")
-      set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-    endif ()
-  endif ()
-
-  if (OPENMP_FOUND)
-    list (APPEND CMAKE_CXX_FLAGS ${OpenMP_CXX_FLAGS})
-  endif ()
-
   if (WITH_NETCDF)
     find_package (NetCDF REQUIRED)
     include_directories (${NETCDF_INCLUDES})
   endif ()
 
+  if (WITH_TBB)
+    find_package (TBB REQUIRED)
+    include_directories (${TBB_INCLUDE_DIR})
+  endif ()
+
+  if (WITH_ROCKSDB)
+    find_package (RocksDB REQUIRED)
+    include_directories (${RocksDB_INCLUDE_DIR})
+  endif ()
+
   if (WITH_LIBMESH)
     find_package (MPI REQUIRED)
-    
+
     set (LIBMESH_DIR "/usr" CACHE PATH "The installed path for libMesh")
     set (LIBMESH_INCLUDE_DIR "${LIBMESH_DIR}/include")
     set (LIBMESH_LIBRARY_DIR "${LIBMESH_DIR}/lib")
@@ -111,10 +92,10 @@ else()
       set (NETCDF_LIBRARY "${LIBMESH_DIR}/lib/libnetcdf.so")
       set (LIBMESH_LIBRARY "${LIBMESH_LIBRARY_DIR}/libmesh_opt.so")
     endif ()
-    
+
     set (PETSC_DIR "/usr" CACHE PATH "The installed path for PETSc")
     set (PETSC_INCLUDE_DIR "${PETSC_DIR}/include")
-    
+
     include_directories (
       ${LIBMESH_INCLUDE_DIR}
       ${PETSC_INCLUDE_DIR}
@@ -135,6 +116,7 @@ else()
 
   if (WITH_VTK)
     find_package (VTK REQUIRED)
+    include_directories(${VTK_INCLUDE_DIRS})
   endif ()
 
   if (WITH_CUDA)
@@ -143,16 +125,6 @@ else()
   endif ()
 
 endif()
-
-if (WITH_PROTOBUF)
-  find_package (Protobuf REQUIRED)
-  include_directories (${PROTOBUF_INCLUDE_DIR})
-endif ()
-
-# boost options
-set (Boost_USE_STATIC_LIBS ON)
-set (Boost_USE_MULTITHREADED ON)
-set (Boost_USE_STATIC_RUNTIME OFF)
 
 # openmp
 # find_package (OpenMP)

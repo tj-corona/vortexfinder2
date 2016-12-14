@@ -15,8 +15,12 @@ endif ()
 set (viewer_sources
   trackball.cpp
   widget.cpp
-  storyLineWidget.cpp
+  # storyLineWidget.cpp
   mainWindow.cpp)
+
+if (WITH_FORTRAN)
+  list (APPEND viewer_sources cmds2.f90)
+endif ()
 
 qt4_wrap_ui (viewer_headers 
   mainWindow.ui)
@@ -43,7 +47,11 @@ if (WITH_VTK)
 endif ()
 
 if (WITH_CUDA)
-  target_link_libraries (glviewer glvolren)
+  # target_link_libraries (glviewer glvolren)
+endif ()
+
+if (WITH_FORTRAN)
+  target_link_libraries (glviewer ${LAPACK_LIBRARIES})
 endif ()
 
 # add_executable (viewer main.cpp)
@@ -52,7 +60,13 @@ endif ()
 add_executable (viewer1 main1.cpp)
 target_link_libraries (viewer1 glviewer)
 
-add_executable (storyLine storyLine.cpp)
-target_link_libraries (storyLine glviewer)
+if (WITH_ROCKSDB)
+  add_executable (viewer2 main2.cpp)
+  target_link_libraries (viewer2 glviewer)
+endif ()
 
-subdirs (volren gl2ps ilines)
+# add_executable (storyLine storyLine.cpp)
+# target_link_libraries (storyLine glviewer)
+
+# subdirs (volren gl2ps ilines)
+subdirs (gl2ps ilines)
