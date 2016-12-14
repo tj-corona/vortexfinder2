@@ -4,12 +4,12 @@ cmake_minimum_required (VERSION 3.1.3)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories (${CMAKE_SOURCE_DIR}/diy/include)
+include_directories (${CMAKE_CURRENT_SOURCE_DIR}/diy/include)
 
 if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
 
   # Build as a plugin within ParaView
-  
+
   # Find and Include ParaView
   if(NOT ParaView_SOURCE_DIR)
     FIND_PACKAGE(ParaView REQUIRED)
@@ -43,7 +43,7 @@ else()
   set (LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
   set (CMAKE_INCLUDE_CURRENT_DIR ON)
 
-  if (WITH_FORTRAN) 
+  if (WITH_FORTRAN)
     enable_language (Fortran)
     find_package (LAPACK REQUIRED)
   endif ()
@@ -67,7 +67,7 @@ else()
     include_directories (${NETCDF_INCLUDES})
   endif ()
 
-  if (WITH_TBB) 
+  if (WITH_TBB)
     find_package (TBB REQUIRED)
     include_directories (${TBB_INCLUDE_DIR})
   endif ()
@@ -79,7 +79,7 @@ else()
 
   if (WITH_LIBMESH)
     find_package (MPI REQUIRED)
-    
+
     set (LIBMESH_DIR "/usr" CACHE PATH "The installed path for libMesh")
     set (LIBMESH_INCLUDE_DIR "${LIBMESH_DIR}/include")
     set (LIBMESH_LIBRARY_DIR "${LIBMESH_DIR}/lib")
@@ -92,10 +92,10 @@ else()
       set (NETCDF_LIBRARY "${LIBMESH_DIR}/lib/libnetcdf.so")
       set (LIBMESH_LIBRARY "${LIBMESH_LIBRARY_DIR}/libmesh_opt.so")
     endif ()
-    
+
     set (PETSC_DIR "/usr" CACHE PATH "The installed path for PETSc")
     set (PETSC_INCLUDE_DIR "${PETSC_DIR}/include")
-    
+
     include_directories (
       ${LIBMESH_INCLUDE_DIR}
       ${PETSC_INCLUDE_DIR}
