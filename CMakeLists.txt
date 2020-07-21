@@ -19,7 +19,7 @@ if (CMAKE_PROJECT_NAME STREQUAL "ParaView")
   endif()
 
   set (WITH_PARAVIEW ON)
-  option (WITH_CXX11 "Build with C++11" OFF)
+  set (WITH_CXX11 ${VTK_USE_CXX11_FEATURES})
 
 else()
 
